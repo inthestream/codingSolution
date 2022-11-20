@@ -1,4 +1,4 @@
-package com.yun.longestSubstring;
+package com.yun.leetcode.longestSubstring;
 
 import java.util.*;
 

@@ -1,4 +1,4 @@
-package com.yun.addTwoNumbers;
+package com.yun.leetcode.addTwoNumbers;
 
 public class Solution {
 
