@@ -4,6 +4,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class Solution {
+    // not solved yet
     public static void main(String[] args) {
         String s = "aet232tecb12344321b";
         //lengthOfPalindromeString(s, 3, 5);
