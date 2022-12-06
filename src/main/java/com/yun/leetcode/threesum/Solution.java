@@ -2,6 +2,11 @@ package com.yun.leetcode.threesum;
 
 import java.util.*;
 
+/**
+ * Runtime 246 ms Beats 37.1%
+ * Memory 46.4 MB Beats 92.44%
+ */
+
 class Solution {
     /**
      * Given an integer array nums, return all the triplets [nums[i], nums[j], nums[k]] such that i != j, i != k, and j != k, and nums[i] + nums[j] + nums[k] == 0.
@@ -17,59 +22,29 @@ class Solution {
         if (nums[0] > 0) return result;
         if (nums[nums.length-1] < 0) return result;
 
-        HashMap<Integer, Integer> map = new HashMap<>();
-        for (int i : nums) {
-            map.put(i, i);
-        }
-
-        int leftIdx = 0;
-        int rightIdx = nums.length-1;
         int dupLeftInt = Integer.MIN_VALUE;
-        int dupRightInt = Integer.MAX_VALUE;
+        int dupRightInt;
 
-        int leftZeroIdx = 0;
-        int rightZeroIdx = nums.length-1;
-
-        while (nums[leftZeroIdx] != 0) {
-            leftZeroIdx++;
-        }
-
-        while (nums[rightZeroIdx] != 0) {
-            rightZeroIdx--;
-        }
-
-        while (leftIdx < rightIdx) {
-            int twosum = nums[leftIdx] + nums[rightIdx];
-
-            if (nums[leftIdx] == dupLeftInt) {
-                leftIdx++;
+        for (int i = 0; i < nums.length && nums[i] <= 0; i++) {
+            if (dupLeftInt == nums[i]) {
                 continue;
-            } else if (nums[rightIdx] == dupRightInt){
-                rightIdx--;
-                continue;
-            }
-
-            if (binarySearch(nums, leftIdx+1, rightIdx-1, twosum*-1) > -1) {
-                result.add(Arrays.asList(nums[leftIdx] ,twosum*(-1) ,nums[rightIdx]));
-            }
-
-
-
-            if (twosum == 0) {
-
-              if (leftZeroIdx - leftIdx < rightIdx - rightZeroIdx) {
-                  dupRightInt = nums[rightIdx];
-                  rightIdx--;
-              } else {
-                  dupLeftInt = nums[leftIdx];
-                  leftIdx++;
-              }
-            } else if (twosum > 0) {
-                dupRightInt = nums[rightIdx];
-                rightIdx--;
             } else {
-                dupLeftInt = nums[leftIdx];
-                leftIdx++;
+                dupLeftInt = nums[i];
+            }
+
+            dupRightInt = Integer.MAX_VALUE;
+            for (int j = i+1; j < nums.length && nums[i] + nums[j] <= 0; j++) {
+                if (dupRightInt == nums[j]) {
+                    continue;
+                } else {
+                    dupRightInt = nums[j];
+                }
+
+                int twosum = nums[i] + nums[j];
+
+                if (binarySearch(nums, j+1, nums.length-1, twosum * -1) > -1) {
+                    result.add(Arrays.asList(nums[i], nums[j], twosum * (-1)));
+                }
             }
         }
         return result;
@@ -92,8 +67,26 @@ class Solution {
     public static void main(String[] args) {
         Solution s = new Solution();
 
+        int[] nums0 = {0,0,0};
+
+        System.out.println(s.threeSum(nums0).size());
+
         int[] nums = {-1,0,1,2,-1,-4,-2,-3,3,0,4};
-        System.out.println(s.threeSum(nums).size());
+
+        //System.out.println(s.threeSum(nums).size());
+
+        int[] nums2 = {-1,0,1,2,-1,-4};
+
+        //System.out.println(s.threeSum(nums2).size());
+
+        int[] nums3 = {-2,0,1,1,2};
+
+        System.out.println(s.threeSum(nums3).size());
+
+        int[] nums4 = {-4,-2,-2,-2,0,1,2,2,2,3,3,4,4,6,6};
+
+        System.out.println(s.threeSum(nums4).size());
+
 
     }
 }
