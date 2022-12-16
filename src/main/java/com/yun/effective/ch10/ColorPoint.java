@@ -1,5 +1,7 @@
 package com.yun.effective.ch10;
 
+import com.yun.publiclibrary.java.e2.AbstractList;
+
 import java.awt.*;
 
 public class ColorPoint extends Point {
