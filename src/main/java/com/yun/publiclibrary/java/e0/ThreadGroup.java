@@ -17,4 +17,15 @@ public class ThreadGroup {
     public int enumerate(Thread[] tarray) {
         return 0;
     }
+
+    public void checkAccess() {
+    }
+
+    public String getName() {
+        return null;
+    }
+
+    public int getMaxPriority() {
+        return 0;
+    }
 }

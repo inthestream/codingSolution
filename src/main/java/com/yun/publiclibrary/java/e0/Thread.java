@@ -1,10 +1,18 @@
 package com.yun.publiclibrary.java.e0;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.reflect.CallerSensitive;
+import jdk.internal.reflect.Reflection;
 import sun.security.util.SecurityConstants;
 
+import java.lang.ref.ReferenceQueue;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * A thread is a thread of execution in a program. The Java virtual Machine allows an application to have multiple
@@ -262,9 +270,9 @@ public class Thread implements Runnable {
      * @param name the name of the new Thread
      * @param stackSize the desired stack size for the new thread, or zero to indicate that this parameter is to be ignored
      * @param acc the AccessControlContext to inherit, or AccessController.getContext() if null
-     * @param inheritThreadLocal if true, inherit initial values for inheritable thread-locals from the constructing thread
+     * @param inheritThreadLocals if true, inherit initial values for inheritable thread-locals from the constructing thread
      */
-    private Thread(ThreadGroup g, Runnable target, String name, long stackSize, AccessControlContext acc, boolean inheritThreadLocal) {
+    private Thread(ThreadGroup g, Runnable target, String name, long stackSize, AccessControlContext acc, boolean inheritThreadLocals) {
         if (name == null) {
             throw new NullPointerException("name cannot be null");
         }
@@ -272,13 +280,13 @@ public class Thread implements Runnable {
         this.name = name;
 
         Thread parent = currentThread();
-        SecurityManager security = System.getSecurityManager();
+        SecurityManager security = (SecurityManager) System.getSecurityManager();
         if (g == null) {
             // Determine if it's an applet or not
 
             // If there is a security manager, ask the security manager what to do
             if (security != null)
-                g = security.getThreadGroup();
+                g = security.getThreadGroup0();
 
             // If the security manager doesn't have a strong opinion on the matter, use the parent thread group
             if (g == null)
@@ -724,5 +732,373 @@ public class Thread implements Runnable {
      */
     public static int enumerate(Thread tarray[]) { return currentThread().getThreadGroup().enumerate(tarray); }
 
+    /**
+     * Waits at most millis milliseconds for this thread to die. A timeout of 0 means to wait forever.
+     *
+     * This implementation uses a loop of this.wait calls conditioned on this.isAlive. As a thread terminates the this.notifyAll method
+     * is invoked. It is recommended that applications not use wait, notify, or notifyAll on Thread instances.
+     *
+     * @param millis the time to wait in milliseconds
+     * @throws IllegalArgumentException if the value of millis is negative
+     * @throws InterruptedException if any thread has interrupted the current thread. The interrupted status of the
+     *                              current thread is cleared when this exception is thrown.
+     */
+    public final synchronized void join(long millis) throws InterruptedException {
+        long base = System.currentTimeMillis();
+        long now = 0;
 
+        if (millis < 0) {
+            throw new IllegalArgumentException("timeout value is negative");
+        }
+
+        if (millis == 0) {
+            while (isAlive()) {
+                wait(0);
+            }
+        } else {
+            while (isAlive()) {
+                long delay = millis - now;
+                if (delay <= 0) {
+                    break;
+                }
+                wait(delay);
+                now = System.currentTimeMillis() - base;
+            }
+        }
+    }
+
+    /**
+     * Waits at most millis milliseconds plus nanos nanoseconds for this thread to die.
+     *
+     * This implementation uses a loop of this.wait calls conditioned on this.isAlive. As a thread terminates the this.notifyAll
+     * method is invoked. It is recommended that applications  not use wait, notify, or notifyAll on Thread instances.
+     *
+     * @param millis the time to wait in milliseconds
+     * @param nanos 0-999999 additional nanoseconds to wait
+     * @throws IllegalArgumentException if the value of millis is negative, or the value of nanos is not in the range 0-999999
+     * @throws InterruptedException if any thread has interruped the current thread. The interrupted status of the current thread
+     *                              is cleared when this exception is thrown.
+     */
+    public final synchronized void join(long millis, int nanos) throws InterruptedException {
+        if (millis < 0) {
+            throw new IllegalArgumentException("timeout value is negative");
+        }
+
+        if (nanos < 0 || nanos > 999999) {
+            throw new IllegalArgumentException("nanosecond timeout value out of range");
+        }
+
+        if (nanos >= 500000 || (nanos != 0 && millis == 0)) {
+            millis++;
+        }
+        join(millis);
+    }
+
+    /**
+     * Waits for this thread to die.
+     *
+     * An invocation of this method behaves in exactly the same way as the invocation
+     *
+     *          join(0)
+     *
+     * @throws InterruptedException if any thread has interrupted the current thread. The interrupted status o f the current thread
+     *                              is cleared when this exception is thrown
+     */
+    public final void join() throws InterruptedException {
+        join(0);
+    }
+
+    /**
+     * Prints a stack trace of the current thread to the standard error stream. This method is used only for debugging.
+     */
+    public static void dumpStack() { new Exception("Stack trace").printStackTrace(); }
+
+    /**
+     * Marks this thread as either a daemon thread or a user thread. The Java Virtual Machine exits when the only threads
+     * running are all daemon threads.
+     *
+     * This method must be invoked before the thread is started.
+     *
+     * @param on if true, marks this thread as a daemon thread
+     * @throws IllegalThreadStateException if this thread is alive
+     * @throws SecurityException if checkAccess determines that the current thread cannot modify this thread
+     */
+    public final void setDaemon(boolean on) {
+        checkAccess();
+        if (isAlive()) {
+            throw new IllegalThreadStateException();
+        }
+        daemon = on;
+    }
+
+    /**
+     * Tests if  this thread is a daemon thread.
+     * @return true if this thread is a daemon thread; false otherwise.
+     */
+    public final boolean isDaemon() { return daemon; }
+
+    /**
+     * Determines if the currently running thread has permission to modify this thread.
+     *
+     * If there is a security manager, its checkAccess method is called with this thread as its argument. This may result in
+     * throwing a SecurityException.
+     *
+     * @throws SecurityException if the current thread is not allowed to access this thread.
+     */
+    public final void checkAccess() {
+        SecurityManager security = (SecurityManager) System.getSecurityManager();
+        if (security != null)
+            security.checkAccess(this);
+    }
+
+    /**
+     * Returns a string representation of this thread, including the thread's name, priority, and thread group.
+     * @return a string representation of this thread.
+     */
+    public String toString() {
+        ThreadGroup group = getThreadGroup();
+        if (group != null) {
+            return "Thread[" + getName() + "," + getPriority() + "," + group.getName() + "]";
+        } else {
+            return "Thread[" + getName() + "," + getPriority() + "," + "" + "]";
+        }
+    }
+
+    /**
+     * Returns the context ClassLoader for this thread. The context ClassLoader is provided by the creator of the thread for use
+     * by code running in this thread when loading classes and resources. If not set, the default is the ClassLoader context of the
+     * parent thread. The context ClassLoader of the primordial thread is typically set to the class loader used to load the application.
+     *
+     * @return the context ClassLoader for this thread, or null indicating the system class loader (or, failing that, the bootstrap class loader)
+     * @throws SecurityException if a security manager is present, and the caller's class loader is not null and is not the same as or an
+     *                           ancestor of the context class loader, and the caller does not have the RuntimePermission("getClassLoader")
+     */
+    @CallerSensitive
+    public ClassLoader getContextClassLoader() {
+        if (contextClassLoader == null)
+            return null;
+        SecurityManager sm = (SecurityManager) System.getSecurityManager();
+        if (sm != null)
+            ClassLoader.checkClassLoaderPermission(contextClassLoader, Reflection.getCallerClass());
+        return contextClassLoader;
+    }
+
+    /**
+     * Sets the context ClassLoader for this Thread. The context ClassLoader can be set when a thread is created, and allows
+     * the creator of the thread to provide the appropriate class loader, through getContextClassLoader, to code running in
+     * the thread when loading classes are resources.
+     *
+     * If a security manager is present, its checkPermission method is invoked with a RuntimePermission ("setContextClassLoader")
+     * permission to see if setting the context ClassLoader is permitted.
+     *
+     * @param cl the context ClassLoader for this Thread, or null indicating the system class loader (or, failing that, the bootstrap
+     *           class loader)
+     * @throws SecurityException if the current thread cannot set the context ClassLoader
+     */
+    public void setContextClassLoader(ClassLoader cl) {
+        SecurityManager sm = (SecurityManager) System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new RuntimePermission("setContextClassLoader"));
+        }
+        contextClassLoader = cl;
+    }
+
+    /**
+     * Returns true if and only if the current thread holds the monitor lock on the specified object.
+     * This method is designed to allow a program to assert that the current thread already holds a specified lock:
+     *
+     *          assert Thread.holdsLock(obj);
+     *
+     * @param obj the object on which to test lock ownership
+     * @return true if the current thread holds the monitor lock on the specified object.
+     * @throws NullPointerException if obj is null
+     */
+    public static native boolean holdsLock(Object obj);
+
+    private static final StackTraceElement[] EMPTY_STACK_TRACE = new StackTraceElement[0];
+
+    /**
+     * Returns an array of stack trace elements representing the stack dump of this thread. This method will return a zero-length
+     * array if this thread has not started, has started but has not yet been scheduled to run by the system, or has terminated.
+     * If the returned array is of non-zero length then the first element of the array represents the top of the stack, which is the
+     * most recent method invocation in the sequence. The last element of the array represents the bottom of the stack, which is
+     * the least recent method invocation in the sequence.
+     *
+     * If there is a security manager, and this thread is not the current thread, then the security manager's checkPermission method
+     * is called with a RuntimePermission("getStackTrace") permission to see if it's ok to get the stack trace.
+     *
+     * Some virtual machines may, under some circumstances, omit one or more stack frames from the stack trace. In the extreme case,
+     * a virtual machine that has no stack trace information concerning this thread is permitted to return a zero-length array
+     * from this method.
+     *
+     * @return an array of StackTraceElement, each represents one stack frame.
+     * @throws SecurityException if a security manager exists and its checkPermission method doesn't allow getting the stack trace of thread.
+     */
+    public StackTraceElement[] getStackTrace() {
+        if (this != Thread.currentThread()) {
+            // check for getStackTrace permission
+            SecurityManager security = (SecurityManager) System.getSecurityManager();
+            if (security != null)
+                security.checkPermission(SecurityConstants.GET_STACK_TRACE_PERMISSION);
+
+            // optimization so we do not call into the vm for threads that
+            // have not yet started or have terminated
+            if (!isAlive())
+                return EMPTY_STACK_TRACE;
+
+            StackTraceElement[][] stackTraceArray = dumpThreads(new Thread[] {this});
+            StackTraceElement[] stackTrace = stackTraceArray[0];
+            // a thread that was alive during the previous isAlive call may have
+            // since terminated, therefore  not having a stacktrace.
+            if (stackTrace == null)
+                stackTrace = EMPTY_STACK_TRACE;
+            return stackTrace;
+        } else {
+            return (new Exception()).getStackTrace();
+        }
+    }
+
+    /**
+     * Returns a map of stack traces for all live threads. The map keys are threads and each map value is an array of StackTraceElement
+     * that represents the stack dump of the corresponding Thread. The returned stack traces are in the format specified for the
+     * getStackTrace method.
+     *
+     * The threads may be executing while this method is called. The stack trace of each thread only represents a snapshot and each
+     * stack trace may be obtained at different time. A zero-length array will be returned to the map value if the virtual machine
+     * has no stack trace information about a thread.
+     *
+     * If there is a security manager, then the security manager's checkPermission method is called  with a RuntimePermission
+     * ("getStackTrace") permission as well as RuntimePermission("modifyThreadGroup") permission to see if it is ok to get the
+     * stack trace of all threads.
+     *
+     * @return a Map from Thread to an array of StackTraceElement that represents the stack trace of the corresponding thread.
+     * @throws SecurityException if a security manager exists and its checkPermission method doesn't allow getting the stack trace
+     *                           of thread.
+     */
+    public static Map<Thread, StackTraceElement[]> getAppStackTraces() {
+        // check for getStackTrace permission
+        SecurityManager security = (SecurityManager) System.getSecurityManager();
+        if (security != null) {
+            security.checkPermission(SecurityConstants.GET_STACK_TRACE_PERMISSION);
+            security.checkPermission(SecurityConstants.MODIFY_THREADGROUP_PERMISSION);
+        }
+
+        // Get a  snapshot of the list of all threads
+        Thread[] threads = getThreads();
+        StackTraceElement[][] traces = dumpThreads(threads);
+        Map<Thread, StackTraceElement[]> m = new HashMap<>(threads.length);
+        for (int i = 0; i < threads.length; i++) {
+            StackTraceElement[] stackTrace = traces[i];
+            if (stackTrace != null) {
+                m.put(threads[i], stackTrace);
+            }
+            // else terminated so we don't put it in the map
+        }
+        return m;
+    }
+
+    /**
+     * cache of subclass security audit results
+     *
+     * Replace with ConcurrentReferenceHashMap when/if it appears in a future release
+     */
+    private static class Caches {
+        // cache of subclass security audit results
+        static final ConcurrentMap<WeakClassKey, Boolean> subclassAudits = new ConcurrentHashMap<>();
+
+        // queue for WeakReferences to audited subclasses
+        static final ReferenceQueue<Class<?>> subclassAuditsQueue = new ReferenceQueue<>();
+    }
+
+    /**
+     * Verifies that this (possibly subclass) instance can be constructed without violating security constrants: the subclass
+     * must not override security-sensitive non-final methods, or else the "enableContextClassLoaderOverride" RuntimePermission is checked.
+     */
+    private static boolean isCCLOverridden(Class<?> cl) {
+        if (cl == Thread.class)
+            return false;
+
+        processQueue(Caches.subclassAuditsQueue, Caches.subclassAudits);
+        WeakClassKey key = new WeakClassKey(cl, Caches.subclassAuditsQueue);
+        Boolean result = Caches.subclassAudits.get(key);
+        if (result == null) {
+            result = Boolean.valueOf(auditSubclass(cl));
+            Caches.subclassAudits.putIfAbsent(key, result);
+        }
+        return result.booleanValue();
+    }
+
+    private static void processQueue(ReferenceQueue<Class<?>> subclassAuditsQueue, ConcurrentMap<WeakClassKey,Boolean> subclassAudits) {
+    }
+
+    /**
+     * Performs reflective checks on given subclass to verify that it doesn't override security-sensitive non-final methods.
+     * Returns true if the subclass overrides any of the methods, false otherwise.
+     */
+    private static boolean auditSubclass(final Class<?> subcl) {
+        Boolean result = AccessController.doPrivileged(
+                new PrivilegedAction<Boolean>() {
+                    @Override
+                    public Boolean run() {
+                        for (Class<?> cl = subcl;
+                        cl != Thread.class;
+                        cl = cl.getSuperclass())
+                        {
+                            try {
+                                cl.getDeclaredMethod("getContextClassLoader", new Class<?>[0]);
+                                return Boolean.TRUE;
+                            } catch (NoSuchMethodException ex) {
+
+                            }
+                            try {
+                                Class<?>[] params = { ClassLoader.class };
+                                cl.getDeclaredMethod("setContextClassLoader", params);
+                                return Boolean.TRUE;
+                            } catch (NoSuchMethodException ex) {
+
+                            }
+                        }
+                        return Boolean.FALSE;
+                    }
+                }
+        );
+        return result.booleanValue();
+    }
+
+    private static native StackTraceElement[][] dumpThreads(Thread[] threads);
+    private static native Thread[] getThreads();
+
+    private static class WeakClassKey {
+        public WeakClassKey(Class<?> cl, ReferenceQueue<Class<?>> subclassAuditsQueue) {
+        }
+    }
+
+
+    @FunctionalInterface
+    public interface UncaughtExceptionHandler {
+        /**
+         * Method invoked when the given thread terminates due to the
+         * given uncaught exception.
+         * <p>Any exception thrown by this method will be ignored by the
+         * Java Virtual Machine.
+         * @param t the thread
+         * @param e the exception
+         */
+        void uncaughtException(java.lang.Thread t, Throwable e);
+    }
+
+    // null unless explicitly set
+    private volatile java.lang.Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
+
+    // null unless explicitly set
+    private static volatile java.lang.Thread.UncaughtExceptionHandler defaultUncaughtExceptionHandler;
+
+
+    /* Some private helper methods */
+    private native void setPriority0(int newPriority);
+    private native void stop0(Object o);
+    private native void suspend0();
+    private native void resume0();
+    private native void interrupt0();
+    private native void setNativeName(String name);
 }
