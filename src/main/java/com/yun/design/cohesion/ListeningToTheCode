@@ -1,0 +1,12 @@
+class GameSheet:
+    def __init__(self, rules):
+        self.sheet = {}
+        self.width = MAX_COLUMNS
+        self.height = MAX_ROWS
+        self.rules = rules
+        self._init_sheet()
+
+    def add_ship(self, ship):
+        self.rules.assert_cna_add_ship(ship)
+        ship.orientation.place_ship(self, ship)
+        self._ship_added(ship)

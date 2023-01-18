@@ -1,5 +1,7 @@
-package com.yun.publiclibrary.java.e0;
+package com.yun.publiclibrary.java.e1;
 
+
+import com.yun.publiclibrary.java.e0.TerminatingThreadLocal;
 
 import java.lang.ref.WeakReference;
 import java.util.Objects;
@@ -122,7 +124,7 @@ public class ThreadLocal<T> {
      *
      * @return true if current thread has associated value in this thread-local variable; false if not
      */
-    boolean isPresent() {
+    public boolean isPresent() {
         Thread t = Thread.currentThread();
         ThreadLocalMap map = getMap(t);
         return map != null && map.getEntry(this) != null;
@@ -198,7 +200,7 @@ public class ThreadLocal<T> {
      * @param parentMap the map associated with parent thread
      * @return a map containing the parent's inheritable bindings
      */
-    static ThreadLocalMap createInheritedMap(ThreadLocalMap parentMap) { return new ThreadLocalMap(parentMap); }
+    public static ThreadLocalMap createInheritedMap(ThreadLocalMap parentMap) { return new ThreadLocalMap(parentMap); }
 
     /**
      * Method childValue is visibly defined in subclass InheritableThreadLocal, but is internally defined here for
@@ -226,7 +228,7 @@ public class ThreadLocal<T> {
      * However, since reference queues are not used, stale entries are guaranteed to be removed only when the table starts
      * running out of space.
      */
-    static class ThreadLocalMap {
+    public static class ThreadLocalMap {
         /**
          * The entries in this hash map extend WeakReference, using its main ref field as the key (which is  always
          * a ThreadLocal object). Note that null keys (i.e. entry.get() == null) mean that the key is no longer referenced,

@@ -1,5 +1,8 @@
-package com.yun.publiclibrary.java.e0;
+package com.yun.publiclibrary.java.e1;
 
+import com.yun.publiclibrary.java.e0.ClassLoader;
+import com.yun.publiclibrary.java.e0.SecurityManager;
+import com.yun.publiclibrary.java.e0.*;
 import jdk.internal.HotSpotIntrinsicCandidate;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
@@ -78,6 +81,12 @@ import java.util.concurrent.ConcurrentMap;
  * Unless otherwise noted, passing a null argument to a constructor or method in this class will cause a NullPointerException to be thrown.
  */
 public class Thread implements Runnable {
+
+    /* ThreadLocal values pertaining to this thread. This map is maintained
+       by the ThreadLocal class
+     */
+    public ThreadLocal.ThreadLocalMap threadLocals;
+
     /* Make sure registerNatives is the first thing <client> does. */
     private static native void registerNatives();
     static {
@@ -110,10 +119,7 @@ public class Thread implements Runnable {
     private static int threadInitNumber;
     private static synchronized int nextThreadNum() { return threadInitNumber++; }
 
-    /* ThreadLocal values pertaining to this thread. This map is maintained
-       by the ThreadLocal class
-     */
-    ThreadLocal.ThreadLocalMap threadLocals = null;
+
 
     /**
      * InteritableThreadLocal values pertaining to this thread. This map is
@@ -280,7 +286,7 @@ public class Thread implements Runnable {
         this.name = name;
 
         Thread parent = currentThread();
-        SecurityManager security = (SecurityManager) System.getSecurityManager();
+        com.yun.publiclibrary.java.e0.SecurityManager security = (com.yun.publiclibrary.java.e0.SecurityManager) System.getSecurityManager();
         if (g == null) {
             // Determine if it's an applet or not
 
@@ -846,7 +852,7 @@ public class Thread implements Runnable {
      * @throws SecurityException if the current thread is not allowed to access this thread.
      */
     public final void checkAccess() {
-        SecurityManager security = (SecurityManager) System.getSecurityManager();
+        com.yun.publiclibrary.java.e0.SecurityManager security = (com.yun.publiclibrary.java.e0.SecurityManager) System.getSecurityManager();
         if (security != null)
             security.checkAccess(this);
     }
@@ -877,7 +883,7 @@ public class Thread implements Runnable {
     public ClassLoader getContextClassLoader() {
         if (contextClassLoader == null)
             return null;
-        SecurityManager sm = (SecurityManager) System.getSecurityManager();
+        com.yun.publiclibrary.java.e0.SecurityManager sm = (com.yun.publiclibrary.java.e0.SecurityManager) System.getSecurityManager();
         if (sm != null)
             ClassLoader.checkClassLoaderPermission(contextClassLoader, Reflection.getCallerClass());
         return contextClassLoader;
@@ -896,7 +902,7 @@ public class Thread implements Runnable {
      * @throws SecurityException if the current thread cannot set the context ClassLoader
      */
     public void setContextClassLoader(ClassLoader cl) {
-        SecurityManager sm = (SecurityManager) System.getSecurityManager();
+        com.yun.publiclibrary.java.e0.SecurityManager sm = (com.yun.publiclibrary.java.e0.SecurityManager) System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new RuntimePermission("setContextClassLoader"));
         }
@@ -937,7 +943,7 @@ public class Thread implements Runnable {
     public StackTraceElement[] getStackTrace() {
         if (this != Thread.currentThread()) {
             // check for getStackTrace permission
-            SecurityManager security = (SecurityManager) System.getSecurityManager();
+            com.yun.publiclibrary.java.e0.SecurityManager security = (com.yun.publiclibrary.java.e0.SecurityManager) System.getSecurityManager();
             if (security != null)
                 security.checkPermission(SecurityConstants.GET_STACK_TRACE_PERMISSION);
 
@@ -977,7 +983,7 @@ public class Thread implements Runnable {
      */
     public static Map<Thread, StackTraceElement[]> getAppStackTraces() {
         // check for getStackTrace permission
-        SecurityManager security = (SecurityManager) System.getSecurityManager();
+        com.yun.publiclibrary.java.e0.SecurityManager security = (SecurityManager) System.getSecurityManager();
         if (security != null) {
             security.checkPermission(SecurityConstants.GET_STACK_TRACE_PERMISSION);
             security.checkPermission(SecurityConstants.MODIFY_THREADGROUP_PERMISSION);
